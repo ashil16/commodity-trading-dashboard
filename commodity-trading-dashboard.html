@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commodity Trading Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --bg2: #111827;
+    --bg3: #1a2236;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #e8eaf0;
+    --muted: #7a8499;
+    --accent: #f0c040;
+    --accent2: #3b82f6;
+    --green: #22c55e;
+    --red: #ef4444;
+    --teal: #14b8a6;
+    --purple: #a78bfa;
+    --font-head: 'Syne', sans-serif;
+    --font-body: 'IBM Plex Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+  .layout { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .logo {
+    padding: 0 20px 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .logo-text { font-family: var(--font-head); font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: -0.5px; }
+  .logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+  .nav-section { padding: 0 12px; margin-bottom: 8px; }
+  .nav-label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; padding: 8px 8px 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 8px;
+    font-size: 13px; color: var(--muted); cursor: pointer;
+    transition: all 0.15s; margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: rgba(240,192,64,0.12); color: var(--accent); }
+  .nav-icon { width: 16px; text-align: center; font-size: 15px; }
+  .sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 1px solid var(--border); }
+  .date-chip { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+  /* MAIN */
+  .main { padding: 28px 32px; overflow-y: auto; }
+  .top-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .page-title { font-family: var(--font-head); font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+  .page-title span { color: var(--accent); }
+  .top-actions { display: flex; align-items: center; gap: 12px; }
+  .ai-badge {
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(240,192,64,0.1); border: 1px solid rgba(240,192,64,0.25);
+    padding: 6px 12px; border-radius: 20px; font-size: 12px; color: var(--accent);
+    font-family: var(--font-mono);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 1.5s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .refresh-btn {
+    background: var(--bg3); border: 1px solid var(--border2);
+    color: var(--text); padding: 6px 14px; border-radius: 8px;
+    font-size: 13px; cursor: pointer; font-family: var(--font-body);
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* TICKER */
+  .ticker-bar {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 16px;
+    overflow: hidden; margin-bottom: 24px;
+    display: flex; align-items: center; gap: 0;
+  }
+  .ticker-label { font-size: 10px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; font-family: var(--font-mono); white-space: nowrap; padding-right: 16px; border-right: 1px solid var(--border); margin-right: 16px; }
+  .ticker-scroll { display: flex; gap: 32px; overflow: hidden; animation: scroll 30s linear infinite; }
+  @keyframes scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+  .ticker-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .ticker-name { font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+  .ticker-price { font-size: 13px; font-weight: 500; font-family: var(--font-mono); }
+  .ticker-chg { font-size: 11px; font-family: var(--font-mono); }
+  .up { color: var(--green); }
+  .dn { color: var(--red); }
+
+  /* GRID */
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-main { display: grid; grid-template-columns: 1fr 360px; gap: 16px; margin-bottom: 24px; }
+
+  /* CARD */
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .card-title {
+    font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase;
+    font-family: var(--font-mono); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .card-title .badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 20px;
+    background: rgba(240,192,64,0.1); color: var(--accent); letter-spacing: 1px;
+  }
+
+  /* COMMODITY CARDS */
+  .commodity-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px;
+    cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .commodity-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--card-color, var(--accent));
+  }
+  .commodity-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+  .com-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+  .com-name { font-family: var(--font-head); font-size: 15px; font-weight: 700; }
+  .com-symbol { font-family: var(--font-mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .com-signal {
+    font-size: 10px; padding: 4px 10px; border-radius: 20px; font-family: var(--font-mono);
+    letter-spacing: 0.5px; font-weight: 500;
+  }
+  .signal-buy { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .signal-sell { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .signal-hold { background: rgba(240,192,64,0.12); color: var(--accent); border: 1px solid rgba(240,192,64,0.2); }
+  .com-price { font-family: var(--font-mono); font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .com-meta { display: flex; align-items: center; gap: 12px; }
+  .com-chg { font-family: var(--font-mono); font-size: 12px; }
+  .com-unit { font-size: 11px; color: var(--muted); }
+  .sparkline { margin-top: 12px; height: 36px; }
+
+  /* NEWS */
+  .news-item {
+    border-bottom: 1px solid var(--border); padding: 14px 0;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .news-item:last-child { border-bottom: none; }
+  .news-item:hover .news-title { color: var(--accent); }
+  .news-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .news-source { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+  .news-tag {
+    font-size: 10px; padding: 2px 8px; border-radius: 20px;
+    font-family: var(--font-mono);
+  }
+  .tag-bullish { background: rgba(34,197,94,0.12); color: var(--green); }
+  .tag-bearish { background: rgba(239,68,68,0.12); color: var(--red); }
+  .tag-neutral { background: rgba(122,132,153,0.15); color: var(--muted); }
+  .news-title { font-size: 13px; font-weight: 500; line-height: 1.5; transition: color 0.15s; }
+  .news-time { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: var(--font-mono); }
+
+  /* AI PREDICTION */
+  .prediction-card {
+    background: linear-gradient(135deg, rgba(240,192,64,0.06) 0%, rgba(59,130,246,0.06) 100%);
+    border: 1px solid rgba(240,192,64,0.2);
+    border-radius: 12px; padding: 20px;
+    margin-bottom: 16px;
+  }
+  .pred-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .pred-title { font-family: var(--font-head); font-size: 16px; font-weight: 700; }
+  .pred-confidence { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+  .pred-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .pred-row:last-child { border-bottom: none; }
+  .pred-label { font-size: 12px; color: var(--muted); }
+  .pred-value { font-family: var(--font-mono); font-size: 13px; font-weight: 500; }
+  .pred-bar { height: 3px; background: var(--bg3); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .pred-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.8s; }
+
+  /* SENTIMENT GAUGE */
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; padding: 12px 0; }
+  .gauge-label { font-size: 11px; color: var(--muted); font-family: var(--font-mono); margin-top: 8px; letter-spacing: 1px; }
+  .gauge-value { font-family: var(--font-head); font-size: 28px; font-weight: 800; color: var(--accent); }
+
+  /* MARKET TABLE */
+  .mkt-table { width: 100%; border-collapse: collapse; }
+  .mkt-table th { font-size: 10px; color: var(--muted); font-family: var(--font-mono); letter-spacing: 1px; text-transform: uppercase; padding: 8px 0; border-bottom: 1px solid var(--border); text-align: left; }
+  .mkt-table th:last-child, .mkt-table td:last-child { text-align: right; }
+  .mkt-table td { padding: 12px 0; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .mkt-table tr:last-child td { border-bottom: none; }
+  .mkt-table tr:hover td { color: var(--accent); }
+  .mkt-name { font-weight: 500; }
+  .mkt-sym { font-family: var(--font-mono); font-size: 10px; color: var(--muted); display: block; }
+  .chg-pill { font-family: var(--font-mono); font-size: 11px; padding: 3px 10px; border-radius: 20px; display: inline-block; }
+  .pill-up { background: rgba(34,197,94,0.12); color: var(--green); }
+  .pill-dn { background: rgba(239,68,68,0.12); color: var(--red); }
+
+  /* AI ASSISTANT */
+  .ai-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .ai-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .ai-avatar { width: 28px; height: 28px; border-radius: 50%; background: rgba(240,192,64,0.15); border: 1px solid rgba(240,192,64,0.3); display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .ai-name { font-size: 13px; font-weight: 500; }
+  .ai-status { font-size: 11px; color: var(--green); font-family: var(--font-mono); }
+  .ai-messages { padding: 16px 20px; min-height: 200px; max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .msg { max-width: 85%; }
+  .msg.ai { align-self: flex-start; }
+  .msg.user { align-self: flex-end; }
+  .msg-bubble {
+    padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5;
+  }
+  .msg.ai .msg-bubble { background: var(--bg3); color: var(--text); border-radius: 4px 10px 10px 10px; }
+  .msg.user .msg-bubble { background: rgba(240,192,64,0.12); color: var(--text); border: 1px solid rgba(240,192,64,0.2); border-radius: 10px 4px 10px 10px; }
+  .ai-input-row { padding: 14px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  .ai-input {
+    flex: 1; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; font-size: 13px;
+    color: var(--text); font-family: var(--font-body); outline: none;
+    transition: border-color 0.2s;
+  }
+  .ai-input:focus { border-color: rgba(240,192,64,0.4); }
+  .ai-input::placeholder { color: var(--muted); }
+  .send-btn {
+    background: var(--accent); color: #0a0e17; border: none;
+    border-radius: 8px; padding: 9px 14px; font-size: 13px; font-weight: 600;
+    cursor: pointer; font-family: var(--font-body); transition: opacity 0.2s;
+  }
+  .send-btn:hover { opacity: 0.85; }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* QUICK PROMPTS */
+  .quick-prompts { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 12px; }
+  .qp { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px; cursor: pointer; font-family: var(--font-mono); transition: all 0.15s; }
+  .qp:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* LOADING */
+  .thinking { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+  .thinking-dots span { animation: bounce 1.2s infinite; display: inline-block; }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-4px)} }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-text">⬡ COMEX</div>
+      <div class="logo-sub">Trading Intelligence</div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Main</div>
+      <div class="nav-item active">
+        <span class="nav-icon">◈</span> Dashboard
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">◉</span> Portfolio
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">◎</span> Watchlist
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Markets</div>
+      <div class="nav-item">
+        <span class="nav-icon">🌾</span> Agri
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">⚙</span> Metals
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">⛽</span> Energy
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Tools</div>
+      <div class="nav-item">
+        <span class="nav-icon">📊</span> Charts
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">🔔</span> Alerts
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">⚙</span> Settings
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="date-chip" id="sidebar-date">Loading...</div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+    <div class="top-bar">
+      <div>
+        <div class="page-title">Morning <span>Briefing</span></div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px;" id="top-date">Loading...</div>
+      </div>
+      <div class="top-actions">
+        <div class="ai-badge"><div class="dot"></div> AI LIVE</div>
+        <button class="refresh-btn" onclick="refreshDashboard()">↻ Refresh</button>
+      </div>
+    </div>
+
+    <!-- TICKER -->
+    <div class="ticker-bar">
+      <div class="ticker-label">LIVE</div>
+      <div class="ticker-scroll" id="ticker"></div>
+    </div>
+
+    <!-- COMMODITY CARDS -->
+    <div class="grid-3" id="commodity-cards"></div>
+
+    <!-- MAIN GRID -->
+    <div class="grid-main">
+      <!-- LEFT: Chart + News -->
+      <div>
+        <!-- Chart -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">Price Chart <span class="badge">7D</span></div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;" id="chart-tabs"></div>
+          <canvas id="priceChart" height="160"></canvas>
+        </div>
+
+        <!-- News -->
+        <div class="card">
+          <div class="card-title">Market News <span class="badge" id="news-count">0</span></div>
+          <div id="news-feed"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL -->
+      <div>
+        <!-- AI Prediction -->
+        <div class="prediction-card">
+          <div class="pred-header">
+            <div class="pred-title">AI Forecast</div>
+            <div class="pred-confidence" id="pred-conf">Loading...</div>
+          </div>
+          <div id="predictions"></div>
+        </div>
+
+        <!-- Market Overview Table -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">Sector Performance</div>
+          <table class="mkt-table">
+            <thead>
+              <tr>
+                <th>Commodity</th>
+                <th>Price</th>
+                <th>Chg</th>
+              </tr>
+            </thead>
+            <tbody id="mkt-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- AI Assistant -->
+        <div class="ai-panel">
+          <div class="ai-header">
+            <div class="ai-avatar">⬡</div>
+            <div>
+              <div class="ai-name">Commodity AI</div>
+              <div class="ai-status">● Online</div>
+            </div>
+          </div>
+          <div class="quick-prompts" id="quick-prompts"></div>
+          <div class="ai-messages" id="ai-messages"></div>
+          <div class="ai-input-row">
+            <input class="ai-input" id="ai-input" placeholder="Ask about markets, predictions, news..." />
+            <button class="send-btn" id="send-btn" onclick="sendToAI()">Send</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const COMMODITIES = [
+  { name: 'Gold', symbol: 'GC', price: 2341.50, change: +0.82, unit: '$/oz', color: '#f0c040', signal: 'BUY', category: 'metals' },
+  { name: 'Crude Oil', symbol: 'CL', price: 78.34, change: -1.24, unit: '$/bbl', color: '#ef4444', signal: 'HOLD', category: 'energy' },
+  { name: 'Silver', symbol: 'SI', price: 27.64, change: +1.55, unit: '$/oz', color: '#a78bfa', signal: 'BUY', category: 'metals' },
+  { name: 'Natural Gas', symbol: 'NG', price: 2.18, change: +3.42, unit: '$/MMBtu', color: '#14b8a6', signal: 'BUY', category: 'energy' },
+  { name: 'Wheat', symbol: 'ZW', price: 548.25, change: -0.67, unit: '¢/bu', color: '#f0c040', signal: 'SELL', category: 'agri' },
+  { name: 'Copper', symbol: 'HG', price: 4.23, change: +0.45, unit: '$/lb', color: '#3b82f6', signal: 'HOLD', category: 'metals' },
+];
+
+const NEWS = [
+  { title: 'Gold surges on Fed rate cut expectations — analysts target $2,400 by Q3', source: 'Reuters', time: '2h ago', tag: 'bullish', commodity: 'Gold' },
+  { title: 'OPEC+ holds output steady; oil markets brace for demand data from China', source: 'Bloomberg', time: '3h ago', tag: 'neutral', commodity: 'Crude Oil' },
+  { title: 'Wheat supplies tighten as drought conditions persist in Black Sea region', source: 'AgriWeek', time: '5h ago', tag: 'bullish', commodity: 'Wheat' },
+  { title: 'Natural gas demand spikes amid heatwave; forecasters revise targets upward', source: 'EIA', time: '6h ago', tag: 'bullish', commodity: 'Natural Gas' },
+  { title: 'Copper faces headwinds as manufacturing PMI data disappoints in Europe', source: 'FT', time: '8h ago', tag: 'bearish', commodity: 'Copper' },
+  { title: 'Silver benefits from dual role: safe-haven demand meets industrial uptick', source: 'Kitco', time: '10h ago', tag: 'bullish', commodity: 'Silver' },
+];
+
+const SECTOR_TABLE = [
+  { name: 'Platinum', sym: 'PL', price: '985.40', chg: '+1.2%', up: true },
+  { name: 'Palladium', sym: 'PA', price: '1,040.50', chg: '-2.1%', up: false },
+  { name: 'Corn', sym: 'ZC', price: '441.25', chg: '+0.8%', up: true },
+  { name: 'Soybean', sym: 'ZS', price: '1,182.00', chg: '-0.3%', up: false },
+  { name: 'Brent', sym: 'BRT', price: '82.18', chg: '-0.9%', up: false },
+  { name: 'Aluminium', sym: 'ALI', price: '2,248.00', chg: '+1.7%', up: true },
+];
+
+const QUICK_PROMPTS = [
+  'Gold outlook today?',
+  'Best buy this week?',
+  'Oil market risks?',
+  'Agri sector news?',
+];
+
+let priceChart = null;
+let activeChartCom = 0;
+
+function setDates() {
+  const now = new Date();
+  const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+  const d = now.toLocaleDateString('en-IN', opts);
+  document.getElementById('sidebar-date').textContent = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+  document.getElementById('top-date').textContent = d + ' — MCX / COMEX Markets';
+}
+
+function buildTicker() {
+  const items = [...COMMODITIES, ...COMMODITIES].map(c => {
+    const up = c.change >= 0;
+    return `<div class="ticker-item">
+      <span class="ticker-name">${c.symbol}</span>
+      <span class="ticker-price" style="color:${c.color}">${formatPrice(c)}</span>
+      <span class="ticker-chg ${up ? 'up' : 'dn'}">${up ? '▲' : '▼'} ${Math.abs(c.change).toFixed(2)}%</span>
+    </div>`;
+  }).join('');
+  document.getElementById('ticker').innerHTML = items;
+}
+
+function formatPrice(c) {
+  if (c.price > 100) return c.price.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  return c.price.toFixed(2);
+}
+
+function buildCommodityCards() {
+  const container = document.getElementById('commodity-cards');
+  container.innerHTML = COMMODITIES.map((c, i) => {
+    const up = c.change >= 0;
+    const sparkId = `spark-${i}`;
+    return `
+    <div class="commodity-card" style="--card-color:${c.color}" onclick="selectChartCom(${i})">
+      <div class="com-header">
+        <div>
+          <div class="com-name">${c.name}</div>
+          <div class="com-symbol">${c.symbol} · MCX</div>
+        </div>
+        <div class="com-signal ${c.signal === 'BUY' ? 'signal-buy' : c.signal === 'SELL' ? 'signal-sell' : 'signal-hold'}">${c.signal}</div>
+      </div>
+      <div class="com-price" style="color:${c.color}">${formatPrice(c)}</div>
+      <div class="com-meta">
+        <div class="com-chg ${up ? 'up' : 'dn'}">${up ? '▲' : '▼'} ${Math.abs(c.change).toFixed(2)}%</div>
+        <div class="com-unit">${c.unit}</div>
+      </div>
+      <div class="sparkline"><canvas id="${sparkId}" height="36"></canvas></div>
+    </div>`;
+  }).join('');
+
+  setTimeout(() => {
+    COMMODITIES.forEach((c, i) => {
+      const ctx = document.getElementById(`spark-${i}`);
+      if (!ctx) return;
+      const pts = generateSparkData(c.price, c.change >= 0);
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: pts.map((_,j) => j),
+          datasets: [{ data: pts, borderColor: c.color, borderWidth: 1.5, fill: true,
+            backgroundColor: c.color + '18', tension: 0.4, pointRadius: 0 }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } }, animation: { duration: 600 } }
+      });
+    });
+  }, 100);
+}
+
+function generateSparkData(base, up) {
+  let v = base * (up ? 0.985 : 1.015);
+  return Array.from({ length: 20 }, () => {
+    v += (Math.random() - (up ? 0.4 : 0.6)) * base * 0.003;
+    return +v.toFixed(2);
+  });
+}
+
+function buildChart(idx) {
+  activeChartCom = idx;
+  const tabs = document.getElementById('chart-tabs');
+  tabs.innerHTML = COMMODITIES.map((c, i) =>
+    `<button onclick="selectChartCom(${i})" style="font-size:11px;padding:4px 12px;border-radius:20px;border:1px solid ${i===idx ? c.color : 'var(--border)'};background:${i===idx ? c.color+'20' : 'transparent'};color:${i===idx ? c.color : 'var(--muted)'};cursor:pointer;font-family:var(--font-mono);transition:all 0.2s">${c.symbol}</button>`
+  ).join('');
+
+  const c = COMMODITIES[idx];
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'];
+  const data = generateWeekData(c.price, c.change >= 0);
+  const ctx = document.getElementById('priceChart').getContext('2d');
+  if (priceChart) priceChart.destroy();
+  priceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: c.name,
+        data,
+        borderColor: c.color,
+        backgroundColor: c.color + '15',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: c.color,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a2236',
+          borderColor: c.color + '40',
+          borderWidth: 1,
+          titleColor: '#7a8499',
+          bodyColor: '#e8eaf0',
+          callbacks: { label: ctx => ` ${c.unit}: ${ctx.parsed.y.toFixed(2)}` }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a8499', font: { family: "'IBM Plex Mono'" } } },
+        y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#7a8499', font: { family: "'IBM Plex Mono'" } } }
+      }
+    }
+  });
+}
+
+function selectChartCom(i) {
+  buildChart(i);
+}
+
+function generateWeekData(base, up) {
+  let v = base * (up ? 0.97 : 1.03);
+  return Array.from({ length: 7 }, () => {
+    v += (Math.random() - (up ? 0.4 : 0.6)) * base * 0.008;
+    return +v.toFixed(2);
+  });
+}
+
+function buildNews() {
+  const feed = document.getElementById('news-feed');
+  document.getElementById('news-count').textContent = NEWS.length;
+  feed.innerHTML = NEWS.map(n => `
+    <div class="news-item">
+      <div class="news-meta">
+        <span class="news-source">${n.source}</span>
+        <span class="news-tag ${n.tag === 'bullish' ? 'tag-bullish' : n.tag === 'bearish' ? 'tag-bearish' : 'tag-neutral'}">${n.tag}</span>
+        <span class="news-source">${n.commodity}</span>
+      </div>
+      <div class="news-title">${n.title}</div>
+      <div class="news-time">${n.time}</div>
+    </div>
+  `).join('');
+}
+
+function buildPredictions() {
+  document.getElementById('pred-conf').textContent = '78% confidence';
+  const preds = [
+    { label: 'Gold (24H)', value: '+1.2% → $2,369', fill: 72 },
+    { label: 'Oil (24H)', value: '-0.8% → $77.71', fill: 35 },
+    { label: 'Nat Gas (24H)', value: '+2.1% → $2.23', fill: 65 },
+  ];
+  document.getElementById('predictions').innerHTML = preds.map(p => `
+    <div class="pred-row">
+      <div>
+        <div class="pred-label">${p.label}</div>
+        <div class="pred-bar"><div class="pred-fill" style="width:${p.fill}%"></div></div>
+      </div>
+      <div class="pred-value" style="color:${p.value.includes('+') ? 'var(--green)' : 'var(--red)'}">${p.value}</div>
+    </div>
+  `).join('');
+}
+
+function buildSectorTable() {
+  document.getElementById('mkt-tbody').innerHTML = SECTOR_TABLE.map(r => `
+    <tr>
+      <td><span class="mkt-name">${r.name}</span><span class="mkt-sym">${r.sym}</span></td>
+      <td style="font-family:var(--font-mono);font-size:13px">${r.price}</td>
+      <td><span class="chg-pill ${r.up ? 'pill-up' : 'pill-dn'}">${r.chg}</span></td>
+    </tr>
+  `).join('');
+}
+
+function buildQuickPrompts() {
+  document.getElementById('quick-prompts').innerHTML = QUICK_PROMPTS.map(p =>
+    `<div class="qp" onclick="sendQuick('${p}')">${p}</div>`
+  ).join('');
+}
+
+function addMessage(text, role) {
+  const msgs = document.getElementById('ai-messages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `<div class="msg-bubble">${text}</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function addThinking() {
+  const msgs = document.getElementById('ai-messages');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.id = 'thinking-msg';
+  div.innerHTML = `<div class="msg-bubble thinking"><span>AI is analyzing</span><span class="thinking-dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeThinking() {
+  const el = document.getElementById('thinking-msg');
+  if (el) el.remove();
+}
+
+const msgHistory = [];
+
+async function sendToAI(text) {
+  const input = document.getElementById('ai-input');
+  const btn = document.getElementById('send-btn');
+  const q = text || input.value.trim();
+  if (!q) return;
+
+  addMessage(q, 'user');
+  input.value = '';
+  btn.disabled = true;
+  addThinking();
+
+  const systemPrompt = `You are a commodity trading assistant for Indian and global markets (MCX, COMEX, NYMEX). 
+You provide daily briefings, price predictions, news summaries, and trading insights for commodities like Gold, Silver, Crude Oil, Natural Gas, Wheat, Copper, etc.
+Be concise (2-4 sentences max), data-driven, and mention specific price levels. Use ₹ for MCX prices and $ for international.
+Today's key data: Gold $2,341/oz (+0.82%), Crude Oil $78.34/bbl (-1.24%), Silver $27.64/oz (+1.55%), Natural Gas $2.18 (+3.42%), Wheat 548¢/bu (-0.67%), Copper $4.23/lb (+0.45%).`;
+
+  msgHistory.push({ role: 'user', content: q });
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: msgHistory.slice(-6),
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'Unable to get a response. Please try again.';
+    msgHistory.push({ role: 'assistant', content: reply });
+    removeThinking();
+    addMessage(reply, 'ai');
+  } catch (e) {
+    removeThinking();
+    addMessage('Connection error. Check your API access and try again.', 'ai');
+  }
+  btn.disabled = false;
+}
+
+function sendQuick(text) {
+  document.getElementById('ai-input').value = text;
+  sendToAI(text);
+}
+
+function refreshDashboard() {
+  COMMODITIES.forEach(c => {
+    c.price *= (1 + (Math.random() * 0.004 - 0.002));
+    c.change += (Math.random() * 0.4 - 0.2);
+  });
+  buildCommodityCards();
+  buildTicker();
+  buildChart(activeChartCom);
+}
+
+document.getElementById('ai-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendToAI();
+});
+
+function init() {
+  setDates();
+  buildTicker();
+  buildCommodityCards();
+  setTimeout(() => buildChart(0), 200);
+  buildNews();
+  buildPredictions();
+  buildSectorTable();
+  buildQuickPrompts();
+  setTimeout(() => {
+    addMessage('Good morning! Markets are open. Gold is rallying on Fed rate cut hopes. Nat Gas up 3.4% on heatwave demand. Ask me anything about today\'s commodity markets.', 'ai');
+  }, 800);
+}
+
+init();
+</script>
+</body>
+</html>
